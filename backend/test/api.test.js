@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { createApp, seedCategories } from '../src/app.js';
+import { createApp, seedCategories, seedPaymentTypes } from '../src/app.js';
 import { MemoryStore } from '../src/store/memory-store.js';
 
 let server;
@@ -178,4 +178,14 @@ test('expenses take an optional payment type that survives its deletion', async 
   assert.equal((await call('DELETE', `/payment-types/${debit.id}`)).status, 204);
   const { body: april } = await call('GET', '/expenses?month=2026-04');
   assert.equal(april.length, 2);
+});
+
+test('seeds starter payment types only into an empty store', async () => {
+  const store = new MemoryStore();
+  await seedPaymentTypes(store);
+  const seeded = await store.listPaymentTypes();
+  assert.deepEqual(seeded.map((p) => p.name), ['Bank transfer', 'Cash']);
+
+  await seedPaymentTypes(store);
+  assert.equal((await store.listPaymentTypes()).length, 2);
 });
