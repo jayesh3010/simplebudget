@@ -8,169 +8,176 @@
   </div>
 </header>
 
+<nav class="container pt-3 d-flex gap-2" aria-label="Pages">
+  <button type="button" class="btn" [class.btn-primary]="page() === 'expenses'" [class.btn-outline-primary]="page() !== 'expenses'" (click)="page.set('expenses')">Expenses</button>
+  <button type="button" class="btn" [class.btn-primary]="page() === 'budget'" [class.btn-outline-primary]="page() !== 'budget'" (click)="page.set('budget')">Budget &amp; payment types</button>
+</nav>
+
 <main class="container py-4 d-grid gap-4">
   @if (error()) {
     <p class="alert alert-danger m-0" role="alert">{{ error() }}</p>
   }
 
-  @if (summary(); as s) {
+  @if (page() === 'expenses') {
     <section class="card"><div class="card-body">
-      <h2 class="h5 card-title mb-3">Spent vs limit</h2>
-      <div class="totals row g-2 mb-4">
-        <div class="col-12 col-sm-4"><div class="tile d-flex flex-column"><span class="text-body-secondary small">Spent</span><strong class="fs-5">{{ s.totalSpent | number: '1.2-2' }}</strong></div></div>
-        <div class="col-12 col-sm-4"><div class="tile d-flex flex-column"><span class="text-body-secondary small">Limit</span><strong class="fs-5">{{ s.totalLimit | number: '1.2-2' }}</strong></div></div>
-        <div class="col-12 col-sm-4"><div class="tile d-flex flex-column">
-          <span class="text-body-secondary small">Remaining</span>
-          <strong class="fs-5" [class.over]="s.totalRemaining < 0">{{ s.totalRemaining | number: '1.2-2' }}</strong>
-        </div></div>
-      </div>
+      <h2 class="h5 card-title mb-3">Add expense</h2>
+      <form class="row g-2" (ngSubmit)="addExpense()">
+        <div class="col-12 col-md-4"><select class="form-select" name="category" required [(ngModel)]="newExpense.categoryId" aria-label="Category">
+          @for (c of categories(); track c.id) {
+            <option [value]="c.id">{{ c.name }}</option>
+          }
+        </select></div>
+        <div class="col-12 col-md-4"><input class="form-control" name="subCategory" placeholder="Sub-category / vendor" aria-label="Sub-category (optional)" maxlength="100"
+               [(ngModel)]="newExpense.subCategory" /></div>
+        <div class="col-6 col-md-4"><select class="form-select" name="type" required [(ngModel)]="newExpense.type" aria-label="Debit or credit">
+          @for (t of expenseTypes; track t) {
+            <option [value]="t">{{ t }}</option>
+          }
+        </select></div>
+        <div class="col-6 col-md-4"><select class="form-select" name="paymentType" [(ngModel)]="newExpense.paymentTypeId" aria-label="Payment type (optional)">
+          <option value="">No payment type</option>
+          @for (p of paymentTypes(); track p.id) {
+            <option [value]="p.id">{{ p.name }}</option>
+          }
+        </select></div>
+        <div class="col-6 col-md-4"><input class="form-control" name="amount" type="number" min="0.01" step="0.01" placeholder="Amount" required
+               [(ngModel)]="newExpense.amount" /></div>
+        <div class="col-6 col-md-4"><input class="form-control" name="date" type="date" required [(ngModel)]="newExpense.date" aria-label="Date" /></div>
+        <div class="col-12 col-md-8"><input class="form-control" name="description" placeholder="Description (optional)" maxlength="200"
+               [(ngModel)]="newExpense.description" /></div>
+        <div class="col-12 col-md-4"><button type="submit" class="btn btn-primary w-100">Add</button></div>
+      </form>
+    </div></section>
 
-      <ul class="limits list-unstyled d-grid gap-3 mb-4">
-        @for (row of s.categories; track row.categoryId) {
-          <li>
-            <div class="limit-head d-flex flex-wrap align-items-center gap-3 mb-1">
-              <span class="name fw-semibold">{{ row.name }}</span>
-              <span class="figures text-body-secondary" [class.over]="row.overLimit">
-                {{ row.spent | number: '1.2-2' }} / {{ row.limit | number: '1.2-2' }}
-              </span>
-              @if (editing()?.id === row.categoryId) {
-                <form class="inline ms-auto d-flex align-items-center gap-2" (ngSubmit)="saveLimit()">
-                  <input
-                    class="form-control form-control-sm" type="number" min="0" step="0.01" name="limit" required aria-label="New monthly limit"
-                    [ngModel]="editing()!.limit"
-                    (ngModelChange)="editing.set({ id: row.categoryId, limit: $event })" />
-                  <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="editing.set(null)">Cancel</button>
-                </form>
-              } @else {
-                <span class="actions ms-auto d-flex gap-1">
-                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="startEdit(row.categoryId, row.limit)">Edit limit</button>
-                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteCategory(row.categoryId)">Delete</button>
+    <section class="card"><div class="card-body">
+      <h2 class="h5 card-title mb-3">Expenses this month</h2>
+      <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Date</th><th>Category</th><th>Sub-category</th><th>Description</th><th>Payment</th><th>Type</th>
+            <th class="num">Amount</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of expenses(); track e.id) {
+            <tr>
+              <td>{{ e.date }}</td>
+              <td>{{ categoryNames().get(e.categoryId) ?? 'Unknown' }}</td>
+              <td>{{ e.subCategory }}</td>
+              <td>{{ e.description }}</td>
+              <td>{{ paymentTypeNames().get(e.paymentTypeId) ?? '' }}</td>
+              <td>{{ e.type }}</td>
+              <td class="num" [class.credit]="e.type === 'Credit'">
+                {{ e.type === 'Credit' ? '+' : '' }}{{ e.amount | number: '1.2-2' }}
+              </td>
+              <td class="num"><button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteExpense(e)">Delete</button></td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="text-body-secondary">No expenses for this month yet.</td></tr>
+          }
+        </tbody>
+      </table></div>
+    </div></section>
+  } @else {
+    @if (summary(); as s) {
+      <section class="card"><div class="card-body">
+        <h2 class="h5 card-title mb-3">Spent vs limit</h2>
+        <div class="totals row g-2 mb-4">
+          <div class="col-12 col-sm-4"><div class="tile d-flex flex-column"><span class="text-body-secondary small">Spent</span><strong class="fs-5">{{ s.totalSpent | number: '1.2-2' }}</strong></div></div>
+          <div class="col-12 col-sm-4"><div class="tile d-flex flex-column"><span class="text-body-secondary small">Limit</span><strong class="fs-5">{{ s.totalLimit | number: '1.2-2' }}</strong></div></div>
+          <div class="col-12 col-sm-4"><div class="tile d-flex flex-column">
+            <span class="text-body-secondary small">Remaining</span>
+            <strong class="fs-5" [class.over]="s.totalRemaining < 0">{{ s.totalRemaining | number: '1.2-2' }}</strong>
+          </div></div>
+        </div>
+
+        <ul class="limits list-unstyled d-grid gap-3 mb-4">
+          @for (row of s.categories; track row.categoryId) {
+            <li>
+              <div class="limit-head d-flex flex-wrap align-items-center gap-3 mb-1">
+                <span class="name fw-semibold">{{ row.name }}</span>
+                <span class="figures text-body-secondary" [class.over]="row.overLimit">
+                  {{ row.spent | number: '1.2-2' }} / {{ row.limit | number: '1.2-2' }}
                 </span>
-              }
-            </div>
-            <div class="bar" [class.over]="row.overLimit">
-              <div class="fill" [style.width.%]="percent(row.spent, row.limit)"></div>
-            </div>
+                @if (editing()?.id === row.categoryId) {
+                  <form class="inline ms-auto d-flex align-items-center gap-2" (ngSubmit)="saveLimit()">
+                    <input
+                      class="form-control form-control-sm" type="number" min="0" step="0.01" name="limit" required aria-label="New monthly limit"
+                      [ngModel]="editing()!.limit"
+                      (ngModelChange)="editing.set({ id: row.categoryId, limit: $event })" />
+                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="editing.set(null)">Cancel</button>
+                  </form>
+                } @else {
+                  <span class="actions ms-auto d-flex gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-primary" (click)="startEdit(row.categoryId, row.limit)">Edit limit</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteCategory(row.categoryId)">Delete</button>
+                  </span>
+                }
+              </div>
+              <div class="bar" [class.over]="row.overLimit">
+                <div class="fill" [style.width.%]="percent(row.spent, row.limit)"></div>
+              </div>
+            </li>
+          } @empty {
+            <li class="text-body-secondary">No categories yet. Add one below.</li>
+          }
+        </ul>
+
+        <form class="row g-2" (ngSubmit)="addCategory()">
+          <div class="col-12 col-md"><input class="form-control" name="catName" placeholder="New category" required maxlength="50" [(ngModel)]="newCategory.name" /></div>
+          <div class="col-12 col-md"><input class="form-control" name="catLimit" type="number" min="0" step="0.01" placeholder="Monthly limit" required
+                 [(ngModel)]="newCategory.monthlyLimit" /></div>
+          <div class="col-12 col-md-auto"><button type="submit" class="btn btn-primary w-100">Add category</button></div>
+        </form>
+      </div></section>
+    }
+
+    <section class="card"><div class="card-body">
+      <h2 class="h5 card-title mb-3">Payment types</h2>
+      <ul class="payment-types list-unstyled d-grid gap-2 mb-4">
+        @for (p of paymentTypes(); track p.id) {
+          <li class="d-flex flex-wrap align-items-center gap-3">
+            @if (editingPaymentType()?.id === p.id) {
+              <form class="row g-2 flex-grow-1" (ngSubmit)="savePaymentType()">
+                <div class="col-12 col-md"><input class="form-control" name="editPtName" required maxlength="50" aria-label="Payment type name"
+                       [(ngModel)]="editingPaymentType()!.name" /></div>
+                <div class="col-12 col-md"><select class="form-select" name="editPtKind" [(ngModel)]="editingPaymentType()!.kind" aria-label="Kind">
+                  @for (k of paymentKinds; track k) {
+                    <option [value]="k">{{ k }}</option>
+                  }
+                </select></div>
+                <div class="col-12 col-md"><input class="form-control" name="editPtProvider" maxlength="50" placeholder="Provider (optional)" aria-label="Provider"
+                       [(ngModel)]="editingPaymentType()!.provider" /></div>
+                <div class="col-12 col-md-auto d-flex gap-2">
+                  <button type="submit" class="btn btn-primary">Save</button>
+                  <button type="button" class="btn btn-outline-secondary" (click)="editingPaymentType.set(null)">Cancel</button>
+                </div>
+              </form>
+            } @else {
+              <span class="name fw-semibold">{{ p.name }}</span>
+              <span class="text-body-secondary">{{ p.kind }}{{ p.provider ? ' · ' + p.provider : '' }}</span>
+              <span class="actions ms-auto d-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="startEditPaymentType(p)">Edit</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="deletePaymentType(p)">Delete</button>
+              </span>
+            }
           </li>
         } @empty {
-          <li class="text-body-secondary">No categories yet. Add one below.</li>
+          <li class="text-body-secondary">No payment types yet. Add your cards, cash or bank accounts below.</li>
         }
       </ul>
-
-      <form class="row g-2" (ngSubmit)="addCategory()">
-        <div class="col-12 col-md"><input class="form-control" name="catName" placeholder="New category" required maxlength="50" [(ngModel)]="newCategory.name" /></div>
-        <div class="col-12 col-md"><input class="form-control" name="catLimit" type="number" min="0" step="0.01" placeholder="Monthly limit" required
-               [(ngModel)]="newCategory.monthlyLimit" /></div>
-        <div class="col-12 col-md-auto"><button type="submit" class="btn btn-primary w-100">Add category</button></div>
+      <form class="row g-2" (ngSubmit)="addPaymentType()">
+        <div class="col-12 col-md"><input class="form-control" name="ptName" placeholder="New payment type, e.g. Amex Gold" required maxlength="50"
+               [(ngModel)]="newPaymentType.name" /></div>
+        <div class="col-12 col-md"><select class="form-select" name="ptKind" [(ngModel)]="newPaymentType.kind" aria-label="Kind">
+          @for (k of paymentKinds; track k) {
+            <option [value]="k">{{ k }}</option>
+          }
+        </select></div>
+        <div class="col-12 col-md"><input class="form-control" name="ptProvider" placeholder="Provider (optional)" maxlength="50" [(ngModel)]="newPaymentType.provider" /></div>
+        <div class="col-12 col-md-auto"><button type="submit" class="btn btn-primary w-100">Add payment type</button></div>
       </form>
     </div></section>
   }
-
-  <section class="card"><div class="card-body">
-    <h2 class="h5 card-title mb-3">Payment types</h2>
-    <ul class="payment-types list-unstyled d-grid gap-2 mb-4">
-      @for (p of paymentTypes(); track p.id) {
-        <li class="d-flex flex-wrap align-items-center gap-3">
-          @if (editingPaymentType()?.id === p.id) {
-            <form class="row g-2 flex-grow-1" (ngSubmit)="savePaymentType()">
-              <div class="col-12 col-md"><input class="form-control" name="editPtName" required maxlength="50" aria-label="Payment type name"
-                     [(ngModel)]="editingPaymentType()!.name" /></div>
-              <div class="col-12 col-md"><select class="form-select" name="editPtKind" [(ngModel)]="editingPaymentType()!.kind" aria-label="Kind">
-                @for (k of paymentKinds; track k) {
-                  <option [value]="k">{{ k }}</option>
-                }
-              </select></div>
-              <div class="col-12 col-md"><input class="form-control" name="editPtProvider" maxlength="50" placeholder="Provider (optional)" aria-label="Provider"
-                     [(ngModel)]="editingPaymentType()!.provider" /></div>
-              <div class="col-12 col-md-auto d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Save</button>
-                <button type="button" class="btn btn-outline-secondary" (click)="editingPaymentType.set(null)">Cancel</button>
-              </div>
-            </form>
-          } @else {
-            <span class="name fw-semibold">{{ p.name }}</span>
-            <span class="text-body-secondary">{{ p.kind }}{{ p.provider ? ' · ' + p.provider : '' }}</span>
-            <span class="actions ms-auto d-flex gap-1">
-              <button type="button" class="btn btn-sm btn-outline-primary" (click)="startEditPaymentType(p)">Edit</button>
-              <button type="button" class="btn btn-sm btn-outline-danger" (click)="deletePaymentType(p)">Delete</button>
-            </span>
-          }
-        </li>
-      } @empty {
-        <li class="text-body-secondary">No payment types yet. Add your cards, cash or bank accounts below.</li>
-      }
-    </ul>
-    <form class="row g-2" (ngSubmit)="addPaymentType()">
-      <div class="col-12 col-md"><input class="form-control" name="ptName" placeholder="New payment type, e.g. Amex Gold" required maxlength="50"
-             [(ngModel)]="newPaymentType.name" /></div>
-      <div class="col-12 col-md"><select class="form-select" name="ptKind" [(ngModel)]="newPaymentType.kind" aria-label="Kind">
-        @for (k of paymentKinds; track k) {
-          <option [value]="k">{{ k }}</option>
-        }
-      </select></div>
-      <div class="col-12 col-md"><input class="form-control" name="ptProvider" placeholder="Provider (optional)" maxlength="50" [(ngModel)]="newPaymentType.provider" /></div>
-      <div class="col-12 col-md-auto"><button type="submit" class="btn btn-primary w-100">Add payment type</button></div>
-    </form>
-  </div></section>
-
-  <section class="card"><div class="card-body">
-    <h2 class="h5 card-title mb-3">Add expense</h2>
-    <form class="row g-2" (ngSubmit)="addExpense()">
-      <div class="col-12 col-md-4"><select class="form-select" name="category" required [(ngModel)]="newExpense.categoryId" aria-label="Category">
-        @for (c of categories(); track c.id) {
-          <option [value]="c.id">{{ c.name }}</option>
-        }
-      </select></div>
-      <div class="col-12 col-md-4"><input class="form-control" name="subCategory" placeholder="Sub-category / vendor" aria-label="Sub-category (optional)" maxlength="100"
-             [(ngModel)]="newExpense.subCategory" /></div>
-      <div class="col-6 col-md-4"><select class="form-select" name="type" required [(ngModel)]="newExpense.type" aria-label="Debit or credit">
-        @for (t of expenseTypes; track t) {
-          <option [value]="t">{{ t }}</option>
-        }
-      </select></div>
-      <div class="col-6 col-md-4"><select class="form-select" name="paymentType" [(ngModel)]="newExpense.paymentTypeId" aria-label="Payment type (optional)">
-        <option value="">No payment type</option>
-        @for (p of paymentTypes(); track p.id) {
-          <option [value]="p.id">{{ p.name }}</option>
-        }
-      </select></div>
-      <div class="col-6 col-md-4"><input class="form-control" name="amount" type="number" min="0.01" step="0.01" placeholder="Amount" required
-             [(ngModel)]="newExpense.amount" /></div>
-      <div class="col-6 col-md-4"><input class="form-control" name="date" type="date" required [(ngModel)]="newExpense.date" aria-label="Date" /></div>
-      <div class="col-12 col-md-8"><input class="form-control" name="description" placeholder="Description (optional)" maxlength="200"
-             [(ngModel)]="newExpense.description" /></div>
-      <div class="col-12 col-md-4"><button type="submit" class="btn btn-primary w-100">Add</button></div>
-    </form>
-  </div></section>
-
-  <section class="card"><div class="card-body">
-    <h2 class="h5 card-title mb-3">Expenses this month</h2>
-    <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-      <thead>
-        <tr>
-          <th>Date</th><th>Category</th><th>Sub-category</th><th>Description</th><th>Payment</th><th>Type</th>
-          <th class="num">Amount</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (e of expenses(); track e.id) {
-          <tr>
-            <td>{{ e.date }}</td>
-            <td>{{ categoryNames().get(e.categoryId) ?? 'Unknown' }}</td>
-            <td>{{ e.subCategory }}</td>
-            <td>{{ e.description }}</td>
-            <td>{{ paymentTypeNames().get(e.paymentTypeId) ?? '' }}</td>
-            <td>{{ e.type }}</td>
-            <td class="num" [class.credit]="e.type === 'Credit'">
-              {{ e.type === 'Credit' ? '+' : '' }}{{ e.amount | number: '1.2-2' }}
-            </td>
-            <td class="num"><button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteExpense(e)">Delete</button></td>
-          </tr>
-        } @empty {
-          <tr><td colspan="8" class="text-body-secondary">No expenses for this month yet.</td></tr>
-        }
-      </tbody>
-    </table></div>
-  </div></section>
 </main>

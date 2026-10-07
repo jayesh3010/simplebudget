@@ -34,6 +34,7 @@ export class App {
   readonly expenses = signal<Expense[]>([]);
   readonly summary = signal<MonthSummary | null>(null);
   readonly error = signal('');
+  readonly page = signal<'expenses' | 'budget'>('expenses');
 
   readonly categoryNames = computed(
     () => new Map(this.categories().map((c) => [c.id, c.name] as const)),
