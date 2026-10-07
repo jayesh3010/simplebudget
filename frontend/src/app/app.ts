@@ -4,7 +4,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Observable, forkJoin } from 'rxjs';
 import { BudgetApi } from './budget-api.service';
-import { Category, Expense, MonthSummary } from './budget.models';
+import { Category, Expense, ExpenseType, MonthSummary } from './budget.models';
 
 function today(): string {
   const d = new Date();
@@ -31,7 +31,15 @@ export class App {
   );
 
   // Add-expense form
-  newExpense = { categoryId: '', amount: null as number | null, description: '', date: today() };
+  readonly expenseTypes: ExpenseType[] = ['Debit', 'Credit'];
+  newExpense = {
+    categoryId: '',
+    amount: null as number | null,
+    type: 'Debit' as ExpenseType,
+    subCategory: '',
+    description: '',
+    date: today(),
+  };
 
   // Add-category form
   newCategory = { name: '', monthlyLimit: null as number | null };
@@ -69,10 +77,10 @@ export class App {
   }
 
   addExpense(): void {
-    const { categoryId, amount, description, date } = this.newExpense;
+    const { categoryId, amount, type, subCategory, description, date } = this.newExpense;
     if (!categoryId || !amount || amount <= 0 || !date) return;
-    this.run(this.api.addExpense({ categoryId, amount, description, date }), (saved) => {
-      this.newExpense = { ...this.newExpense, amount: null, description: '' };
+    this.run(this.api.addExpense({ categoryId, amount, type, subCategory, description, date }), (saved) => {
+      this.newExpense = { ...this.newExpense, amount: null, type: 'Debit', subCategory: '', description: '' };
       // Jump to the month the expense belongs to so it is visible.
       this.month.set(saved.month);
       this.reload();

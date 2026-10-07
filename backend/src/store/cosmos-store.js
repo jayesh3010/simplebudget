@@ -3,7 +3,7 @@ import { newestFirst } from './sort.js';
 
 // Two containers:
 //   categories  partition key /id     { id, name, monthlyLimit }
-//   expenses    partition key /month  { id, categoryId, amount, description, date, month }
+//   expenses    partition key /month  { id, categoryId, amount, type, subCategory, description, date, month }
 // Partitioning expenses by month keeps the common "show this month" query
 // inside a single partition.
 export class CosmosStore {

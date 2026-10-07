@@ -76,3 +76,58 @@ test('refuses to delete a category that has expenses', async () => {
   await call('POST', '/expenses', { categoryId: cat.id, amount: 30, date: '2026-10-01' });
   assert.equal((await call('DELETE', `/categories/${cat.id}`)).status, 409);
 });
+
+test('stores sub-category and debit/credit type, defaulting to Debit', async () => {
+  const { body: cats } = await call('GET', '/categories');
+  const { status, body } = await call('POST', '/expenses', {
+    categoryId: cats[0].id, amount: 7, date: '2026-07-01', subCategory: '  Corner Shop ',
+  });
+  assert.equal(status, 201);
+  assert.equal(body.type, 'Debit');
+  assert.equal(body.subCategory, 'Corner Shop');
+
+  const { body: credit } = await call('POST', '/expenses', {
+    categoryId: cats[0].id, amount: 2, date: '2026-07-02', type: 'Credit',
+  });
+  assert.equal(credit.type, 'Credit');
+  assert.equal(credit.subCategory, '');
+});
+
+test('rejects a type other than Debit or Credit', async () => {
+  const { body: cats } = await call('GET', '/categories');
+  for (const type of ['debit', 'Refund', '', 5]) {
+    const res = await call('POST', '/expenses', { categoryId: cats[0].id, amount: 1, date: '2026-07-01', type });
+    assert.equal(res.status, 400, `type ${JSON.stringify(type)}`);
+  }
+});
+
+test('credits reduce spent in the monthly summary', async () => {
+  const { body: cat } = await call('POST', '/categories', { name: 'Clothes', monthlyLimit: 100 });
+  await call('POST', '/expenses', { categoryId: cat.id, amount: 80, date: '2026-06-03', type: 'Debit' });
+  await call('POST', '/expenses', { categoryId: cat.id, amount: 30, date: '2026-06-10', type: 'Credit' });
+  const { body } = await call('GET', '/summary?month=2026-06');
+  const row = body.categories.find((r) => r.categoryId === cat.id);
+  assert.equal(row.spent, 50);
+  assert.equal(row.remaining, 50);
+});
+
+test('reads expenses saved without a type as Debit', async () => {
+  const store = new MemoryStore();
+  await store.saveCategory({ id: 'c1', name: 'Old', monthlyLimit: 10 });
+  await store.saveExpense({
+    id: 'e1', categoryId: 'c1', amount: 4, description: '', date: '2026-05-01', month: '2026-05',
+    createdAt: '2026-05-01T00:00:00.000Z',
+  });
+  const legacy = createApp(store).listen(0);
+  await new Promise((resolve) => legacy.once('listening', resolve));
+  try {
+    const url = `http://localhost:${legacy.address().port}/api`;
+    const expenses = await (await fetch(`${url}/expenses?month=2026-05`)).json();
+    assert.equal(expenses[0].type, 'Debit');
+    assert.equal(expenses[0].subCategory, '');
+    const summary = await (await fetch(`${url}/summary?month=2026-05`)).json();
+    assert.equal(summary.categories[0].spent, 4);
+  } finally {
+    legacy.close();
+  }
+});

@@ -47,9 +47,12 @@ On startup the API creates the database and two containers if they don't exist:
 | Container    | Partition key | Document                                              |
 |--------------|---------------|-------------------------------------------------------|
 | `categories` | `/id`         | `{ id, name, monthlyLimit }`                          |
-| `expenses`   | `/month`      | `{ id, categoryId, amount, description, date, month, createdAt }` |
+| `expenses`   | `/month`      | `{ id, categoryId, amount, type, subCategory, description, date, month, createdAt }` |
 
 Expenses are partitioned by month (`YYYY-MM`) so the monthly view reads a single partition.
+`type` is `Debit` or `Credit`; a credit (refund, cashback) reduces the month's spent
+total for its category. Expenses saved before `type` existed are read as `Debit`.
+`subCategory` is optional free text, for example the vendor.
 
 ## API
 
@@ -60,7 +63,7 @@ Expenses are partitioned by month (`YYYY-MM`) so the monthly view reads a single
 | PUT    | `/api/categories/:id`              | `{ name, monthlyLimit }`                      |
 | DELETE | `/api/categories/:id`              | refused (409) while it has expenses           |
 | GET    | `/api/expenses?month=YYYY-MM`      |                                               |
-| POST   | `/api/expenses`                    | `{ categoryId, amount, date: YYYY-MM-DD, description? }` |
+| POST   | `/api/expenses`                    | `{ categoryId, amount, date: YYYY-MM-DD, type?: Debit\|Credit (default Debit), subCategory?, description? }` |
 | DELETE | `/api/expenses/:id?month=YYYY-MM`  |                                               |
 | GET    | `/api/summary?month=YYYY-MM`       | spent, limit and remaining per category, plus totals |
 

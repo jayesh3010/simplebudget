@@ -73,6 +73,13 @@
           <option [value]="c.id">{{ c.name }}</option>
         }
       </select>
+      <input name="subCategory" placeholder="Sub-category / vendor" aria-label="Sub-category (optional)" maxlength="100"
+             [(ngModel)]="newExpense.subCategory" />
+      <select name="type" required [(ngModel)]="newExpense.type" aria-label="Debit or credit">
+        @for (t of expenseTypes; track t) {
+          <option [value]="t">{{ t }}</option>
+        }
+      </select>
       <input name="amount" type="number" min="0.01" step="0.01" placeholder="Amount" required
              [(ngModel)]="newExpense.amount" />
       <input name="date" type="date" required [(ngModel)]="newExpense.date" aria-label="Date" />
@@ -86,19 +93,26 @@
     <h2>Expenses this month</h2>
     <table>
       <thead>
-        <tr><th>Date</th><th>Category</th><th>Description</th><th class="num">Amount</th><th></th></tr>
+        <tr>
+          <th>Date</th><th>Category</th><th>Sub-category</th><th>Description</th><th>Type</th>
+          <th class="num">Amount</th><th></th>
+        </tr>
       </thead>
       <tbody>
         @for (e of expenses(); track e.id) {
           <tr>
             <td>{{ e.date }}</td>
             <td>{{ categoryNames().get(e.categoryId) ?? 'Unknown' }}</td>
+            <td>{{ e.subCategory }}</td>
             <td>{{ e.description }}</td>
-            <td class="num">{{ e.amount | number: '1.2-2' }}</td>
+            <td>{{ e.type }}</td>
+            <td class="num" [class.credit]="e.type === 'Credit'">
+              {{ e.type === 'Credit' ? '+' : '' }}{{ e.amount | number: '1.2-2' }}
+            </td>
             <td class="num"><button type="button" class="link danger" (click)="deleteExpense(e)">Delete</button></td>
           </tr>
         } @empty {
-          <tr><td colspan="5" class="muted">No expenses for this month yet.</td></tr>
+          <tr><td colspan="7" class="muted">No expenses for this month yet.</td></tr>
         }
       </tbody>
     </table>
