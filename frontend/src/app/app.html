@@ -68,6 +68,53 @@
   }
 
   <section class="card"><div class="card-body">
+    <h2 class="h5 card-title mb-3">Payment types</h2>
+    <ul class="payment-types list-unstyled d-grid gap-2 mb-4">
+      @for (p of paymentTypes(); track p.id) {
+        <li class="d-flex flex-wrap align-items-center gap-3">
+          @if (editingPaymentType()?.id === p.id) {
+            <form class="row g-2 flex-grow-1" (ngSubmit)="savePaymentType()">
+              <div class="col-12 col-md"><input class="form-control" name="editPtName" required maxlength="50" aria-label="Payment type name"
+                     [(ngModel)]="editingPaymentType()!.name" /></div>
+              <div class="col-12 col-md"><select class="form-select" name="editPtKind" [(ngModel)]="editingPaymentType()!.kind" aria-label="Kind">
+                @for (k of paymentKinds; track k) {
+                  <option [value]="k">{{ k }}</option>
+                }
+              </select></div>
+              <div class="col-12 col-md"><input class="form-control" name="editPtProvider" maxlength="50" placeholder="Provider (optional)" aria-label="Provider"
+                     [(ngModel)]="editingPaymentType()!.provider" /></div>
+              <div class="col-12 col-md-auto d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-outline-secondary" (click)="editingPaymentType.set(null)">Cancel</button>
+              </div>
+            </form>
+          } @else {
+            <span class="name fw-semibold">{{ p.name }}</span>
+            <span class="text-body-secondary">{{ p.kind }}{{ p.provider ? ' · ' + p.provider : '' }}</span>
+            <span class="actions ms-auto d-flex gap-1">
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="startEditPaymentType(p)">Edit</button>
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="deletePaymentType(p)">Delete</button>
+            </span>
+          }
+        </li>
+      } @empty {
+        <li class="text-body-secondary">No payment types yet. Add your cards, cash or bank accounts below.</li>
+      }
+    </ul>
+    <form class="row g-2" (ngSubmit)="addPaymentType()">
+      <div class="col-12 col-md"><input class="form-control" name="ptName" placeholder="New payment type, e.g. Amex Gold" required maxlength="50"
+             [(ngModel)]="newPaymentType.name" /></div>
+      <div class="col-12 col-md"><select class="form-select" name="ptKind" [(ngModel)]="newPaymentType.kind" aria-label="Kind">
+        @for (k of paymentKinds; track k) {
+          <option [value]="k">{{ k }}</option>
+        }
+      </select></div>
+      <div class="col-12 col-md"><input class="form-control" name="ptProvider" placeholder="Provider (optional)" maxlength="50" [(ngModel)]="newPaymentType.provider" /></div>
+      <div class="col-12 col-md-auto"><button type="submit" class="btn btn-primary w-100">Add payment type</button></div>
+    </form>
+  </div></section>
+
+  <section class="card"><div class="card-body">
     <h2 class="h5 card-title mb-3">Add expense</h2>
     <form class="row g-2" (ngSubmit)="addExpense()">
       <div class="col-12 col-md-4"><select class="form-select" name="category" required [(ngModel)]="newExpense.categoryId" aria-label="Category">
@@ -125,52 +172,5 @@
         }
       </tbody>
     </table></div>
-  </div></section>
-
-  <section class="card"><div class="card-body">
-    <h2 class="h5 card-title mb-3">Payment types</h2>
-    <ul class="payment-types list-unstyled d-grid gap-2 mb-4">
-      @for (p of paymentTypes(); track p.id) {
-        <li class="d-flex flex-wrap align-items-center gap-3">
-          @if (editingPaymentType()?.id === p.id) {
-            <form class="row g-2 flex-grow-1" (ngSubmit)="savePaymentType()">
-              <div class="col-12 col-md"><input class="form-control" name="editPtName" required maxlength="50" aria-label="Payment type name"
-                     [(ngModel)]="editingPaymentType()!.name" /></div>
-              <div class="col-12 col-md"><select class="form-select" name="editPtKind" [(ngModel)]="editingPaymentType()!.kind" aria-label="Kind">
-                @for (k of paymentKinds; track k) {
-                  <option [value]="k">{{ k }}</option>
-                }
-              </select></div>
-              <div class="col-12 col-md"><input class="form-control" name="editPtProvider" maxlength="50" placeholder="Provider (optional)" aria-label="Provider"
-                     [(ngModel)]="editingPaymentType()!.provider" /></div>
-              <div class="col-12 col-md-auto d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Save</button>
-                <button type="button" class="btn btn-outline-secondary" (click)="editingPaymentType.set(null)">Cancel</button>
-              </div>
-            </form>
-          } @else {
-            <span class="name fw-semibold">{{ p.name }}</span>
-            <span class="text-body-secondary">{{ p.kind }}{{ p.provider ? ' · ' + p.provider : '' }}</span>
-            <span class="actions ms-auto d-flex gap-1">
-              <button type="button" class="btn btn-sm btn-outline-primary" (click)="startEditPaymentType(p)">Edit</button>
-              <button type="button" class="btn btn-sm btn-outline-danger" (click)="deletePaymentType(p)">Delete</button>
-            </span>
-          }
-        </li>
-      } @empty {
-        <li class="text-body-secondary">No payment types yet. Add your cards, cash or bank accounts below.</li>
-      }
-    </ul>
-    <form class="row g-2" (ngSubmit)="addPaymentType()">
-      <div class="col-12 col-md"><input class="form-control" name="ptName" placeholder="New payment type, e.g. Amex Gold" required maxlength="50"
-             [(ngModel)]="newPaymentType.name" /></div>
-      <div class="col-12 col-md"><select class="form-select" name="ptKind" [(ngModel)]="newPaymentType.kind" aria-label="Kind">
-        @for (k of paymentKinds; track k) {
-          <option [value]="k">{{ k }}</option>
-        }
-      </select></div>
-      <div class="col-12 col-md"><input class="form-control" name="ptProvider" placeholder="Provider (optional)" maxlength="50" [(ngModel)]="newPaymentType.provider" /></div>
-      <div class="col-12 col-md-auto"><button type="submit" class="btn btn-primary w-100">Add payment type</button></div>
-    </form>
   </div></section>
 </main>
