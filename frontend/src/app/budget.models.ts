@@ -4,10 +4,14 @@ export interface Category {
   monthlyLimit: number;
 }
 
+export type ExpenseType = 'Debit' | 'Credit';
+
 export interface Expense {
   id: string;
   categoryId: string;
   amount: number;
+  type: ExpenseType;
+  subCategory: string;
   description: string;
   date: string; // YYYY-MM-DD
   month: string; // YYYY-MM
@@ -17,6 +21,8 @@ export interface Expense {
 export interface NewExpense {
   categoryId: string;
   amount: number;
+  type: ExpenseType;
+  subCategory: string;
   description: string;
   date: string;
 }

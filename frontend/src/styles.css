@@ -41,6 +41,7 @@ main { max-width: 900px; margin: 0 auto; padding: 16px; display: grid; gap: 16px
 .bar .fill { height: 100%; background: var(--ok); transition: width 0.3s; }
 .bar.over .fill { background: var(--danger); }
 .over { color: var(--danger) !important; }
+.credit { color: var(--ok); }
 
 .row { display: flex; flex-wrap: wrap; gap: 8px; }
 .row input, .row select { flex: 1 1 140px; }

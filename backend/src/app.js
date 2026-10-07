@@ -4,6 +4,7 @@ import express from 'express';
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+export const EXPENSE_TYPES = ['Debit', 'Credit'];
 
 export const DEFAULT_CATEGORIES = [
   { name: 'Groceries', monthlyLimit: 400 },
@@ -37,6 +38,16 @@ function parseMonth(value) {
     throw new HttpError(400, 'month must be in YYYY-MM format');
   }
   return value;
+}
+
+// Expenses saved before the type field existed are debits.
+function withDefaults(expense) {
+  return { subCategory: '', ...expense, type: expense.type ?? 'Debit' };
+}
+
+// A credit (refund, cashback) reduces what was spent in its category.
+function signedAmount(expense) {
+  return expense.type === 'Credit' ? -expense.amount : expense.amount;
 }
 
 function parseCategoryBody(body) {
@@ -100,17 +111,21 @@ export function createApp(store, { corsOrigin } = {}) {
   // ---- Expenses ----
 
   api.get('/expenses', async (req, res) => {
-    res.json(await store.listExpenses(parseMonth(req.query.month)));
+    const expenses = await store.listExpenses(parseMonth(req.query.month));
+    res.json(expenses.map(withDefaults));
   });
 
   api.post('/expenses', async (req, res) => {
-    const { categoryId, description, date } = req.body ?? {};
+    const { categoryId, description, subCategory, date, type = 'Debit' } = req.body ?? {};
     const amount = Number(req.body?.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new HttpError(400, 'amount must be a number greater than 0');
     }
     if (typeof date !== 'string' || !DATE_RE.test(date)) {
       throw new HttpError(400, 'date must be in YYYY-MM-DD format');
+    }
+    if (!EXPENSE_TYPES.includes(type)) {
+      throw new HttpError(400, 'type must be either Debit or Credit');
     }
     if (typeof categoryId !== 'string' || !(await store.getCategory(categoryId))) {
       throw new HttpError(400, 'categoryId must be an existing category');
@@ -119,7 +134,9 @@ export function createApp(store, { corsOrigin } = {}) {
       id: randomUUID(),
       categoryId,
       amount: round2(amount),
+      subCategory: typeof subCategory === 'string' ? subCategory.trim().slice(0, 100) : '',
       description: typeof description === 'string' ? description.trim().slice(0, 200) : '',
+      type,
       date,
       month: date.slice(0, 7),
       createdAt: new Date().toISOString(),
@@ -144,8 +161,8 @@ export function createApp(store, { corsOrigin } = {}) {
       store.listExpenses(month),
     ]);
     const spentByCategory = new Map();
-    for (const e of expenses) {
-      spentByCategory.set(e.categoryId, (spentByCategory.get(e.categoryId) ?? 0) + e.amount);
+    for (const e of expenses.map(withDefaults)) {
+      spentByCategory.set(e.categoryId, (spentByCategory.get(e.categoryId) ?? 0) + signedAmount(e));
     }
     const rows = categories.map((c) => {
       const spent = round2(spentByCategory.get(c.id) ?? 0);
