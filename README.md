@@ -42,17 +42,22 @@ Set these in `backend/.env`:
 | `COSMOS_KEY`      | Account primary key (keep it out of git)        |
 | `COSMOS_DATABASE` | Database name, default `simplebudge`            |
 
-On startup the API creates the database and two containers if they don't exist:
+On startup the API creates the database and three containers if they don't exist:
 
 | Container    | Partition key | Document                                              |
 |--------------|---------------|-------------------------------------------------------|
 | `categories` | `/id`         | `{ id, name, monthlyLimit }`                          |
-| `expenses`   | `/month`      | `{ id, categoryId, amount, type, subCategory, description, date, month, createdAt }` |
+| `paymentTypes` | `/id`       | `{ id, name, kind, provider }`                        |
+| `expenses`   | `/month`      | `{ id, categoryId, amount, type, subCategory, paymentTypeId, description, date, month, createdAt }` |
 
 Expenses are partitioned by month (`YYYY-MM`) so the monthly view reads a single partition.
 `type` is `Debit` or `Credit`; a credit (refund, cashback) reduces the month's spent
 total for its category. Expenses saved before `type` existed are read as `Debit`.
 `subCategory` is optional free text, for example the vendor.
+`paymentTypeId` is optional and points to a payment type (a card, cash, a bank
+account). `kind` is one of `Credit card`, `Debit card`, `Cash`, `Bank transfer`,
+`Other`; `provider` is optional free text such as the bank. Deleting a payment
+type leaves its expenses as they are; they just show no payment type.
 
 ## API
 
@@ -62,8 +67,12 @@ total for its category. Expenses saved before `type` existed are read as `Debit`
 | POST   | `/api/categories`                  | `{ name, monthlyLimit }`                      |
 | PUT    | `/api/categories/:id`              | `{ name, monthlyLimit }`                      |
 | DELETE | `/api/categories/:id`              | refused (409) while it has expenses           |
+| GET    | `/api/payment-types`               |                                               |
+| POST   | `/api/payment-types`               | `{ name, kind?, provider? }`                  |
+| PUT    | `/api/payment-types/:id`           | `{ name, kind?, provider? }`                  |
+| DELETE | `/api/payment-types/:id`           | expenses that used it keep their history      |
 | GET    | `/api/expenses?month=YYYY-MM`      |                                               |
-| POST   | `/api/expenses`                    | `{ categoryId, amount, date: YYYY-MM-DD, type?: Debit\|Credit (default Debit), subCategory?, description? }` |
+| POST   | `/api/expenses`                    | `{ categoryId, amount, date: YYYY-MM-DD, type?: Debit\|Credit (default Debit), subCategory?, paymentTypeId?, description? }` |
 | DELETE | `/api/expenses/:id?month=YYYY-MM`  |                                               |
 | GET    | `/api/summary?month=YYYY-MM`       | spent, limit and remaining per category, plus totals |
 

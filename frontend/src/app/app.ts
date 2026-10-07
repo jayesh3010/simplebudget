@@ -4,7 +4,15 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Observable, forkJoin } from 'rxjs';
 import { BudgetApi } from './budget-api.service';
-import { Category, Expense, ExpenseType, MonthSummary } from './budget.models';
+import {
+  Category,
+  Expense,
+  ExpenseType,
+  MonthSummary,
+  PaymentKind,
+  PaymentType,
+  PaymentTypeInput,
+} from './budget.models';
 
 function today(): string {
   const d = new Date();
@@ -22,12 +30,17 @@ export class App {
 
   readonly month = signal(today().slice(0, 7));
   readonly categories = signal<Category[]>([]);
+  readonly paymentTypes = signal<PaymentType[]>([]);
   readonly expenses = signal<Expense[]>([]);
   readonly summary = signal<MonthSummary | null>(null);
   readonly error = signal('');
 
   readonly categoryNames = computed(
     () => new Map(this.categories().map((c) => [c.id, c.name] as const)),
+  );
+
+  readonly paymentTypeNames = computed(
+    () => new Map(this.paymentTypes().map((p) => [p.id, p.name] as const)),
   );
 
   // Add-expense form
@@ -37,12 +50,18 @@ export class App {
     amount: null as number | null,
     type: 'Debit' as ExpenseType,
     subCategory: '',
+    paymentTypeId: '',
     description: '',
     date: today(),
   };
 
   // Add-category form
   newCategory = { name: '', monthlyLimit: null as number | null };
+
+  // Payment type forms
+  readonly paymentKinds: PaymentKind[] = ['Credit card', 'Debit card', 'Cash', 'Bank transfer', 'Other'];
+  newPaymentType: PaymentTypeInput = { name: '', kind: 'Credit card', provider: '' };
+  readonly editingPaymentType = signal<PaymentType | null>(null);
 
   // Limit being edited: category id -> draft limit
   readonly editing = signal<{ id: string; limit: number } | null>(null);
@@ -62,11 +81,13 @@ export class App {
     this.run(
       forkJoin({
         categories: this.api.getCategories(),
+        paymentTypes: this.api.getPaymentTypes(),
         expenses: this.api.getExpenses(month),
         summary: this.api.getSummary(month),
       }),
-      ({ categories, expenses, summary }) => {
+      ({ categories, paymentTypes, expenses, summary }) => {
         this.categories.set(categories);
+        this.paymentTypes.set(paymentTypes);
         this.expenses.set(expenses);
         this.summary.set(summary);
         if (!this.newExpense.categoryId && categories.length) {
@@ -77,9 +98,11 @@ export class App {
   }
 
   addExpense(): void {
-    const { categoryId, amount, type, subCategory, description, date } = this.newExpense;
+    const { categoryId, amount, type, subCategory, paymentTypeId, description, date } = this.newExpense;
     if (!categoryId || !amount || amount <= 0 || !date) return;
-    this.run(this.api.addExpense({ categoryId, amount, type, subCategory, description, date }), (saved) => {
+    const expense = { categoryId, amount, type, subCategory, paymentTypeId, description, date };
+    this.run(this.api.addExpense(expense), (saved) => {
+      // Payment type is kept: consecutive expenses are often paid the same way.
       this.newExpense = { ...this.newExpense, amount: null, type: 'Debit', subCategory: '', description: '' };
       // Jump to the month the expense belongs to so it is visible.
       this.month.set(saved.month);
@@ -116,6 +139,35 @@ export class App {
 
   deleteCategory(categoryId: string): void {
     this.run(this.api.deleteCategory(categoryId), () => this.reload());
+  }
+
+  addPaymentType(): void {
+    const { name, kind, provider } = this.newPaymentType;
+    if (!name.trim()) return;
+    this.run(this.api.createPaymentType({ name: name.trim(), kind, provider: provider.trim() }), () => {
+      this.newPaymentType = { name: '', kind: 'Credit card', provider: '' };
+      this.reload();
+    });
+  }
+
+  startEditPaymentType(paymentType: PaymentType): void {
+    this.editingPaymentType.set({ ...paymentType });
+  }
+
+  savePaymentType(): void {
+    const edit = this.editingPaymentType();
+    if (!edit || !edit.name.trim()) return;
+    this.run(this.api.updatePaymentType({ ...edit, name: edit.name.trim(), provider: edit.provider.trim() }), () => {
+      this.editingPaymentType.set(null);
+      this.reload();
+    });
+  }
+
+  deletePaymentType(paymentType: PaymentType): void {
+    this.run(this.api.deletePaymentType(paymentType.id), () => {
+      if (this.newExpense.paymentTypeId === paymentType.id) this.newExpense.paymentTypeId = '';
+      this.reload();
+    });
   }
 
   percent(spent: number, limit: number): number {

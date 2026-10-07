@@ -37,6 +37,12 @@ main { max-width: 900px; margin: 0 auto; padding: 16px; display: grid; gap: 16px
 .limit-head .actions, .limit-head .inline { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .limit-head .inline input { width: 110px; }
 
+.payment-types { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 8px; }
+.payment-types li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.payment-types li > form { flex: 1; }
+.payment-types .name { font-weight: 600; }
+.payment-types .actions { margin-left: auto; display: flex; gap: 6px; }
+
 .bar { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
 .bar .fill { height: 100%; background: var(--ok); transition: width 0.3s; }
 .bar.over .fill { background: var(--danger); }
