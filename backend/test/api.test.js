@@ -125,9 +125,57 @@ test('reads expenses saved without a type as Debit', async () => {
     const expenses = await (await fetch(`${url}/expenses?month=2026-05`)).json();
     assert.equal(expenses[0].type, 'Debit');
     assert.equal(expenses[0].subCategory, '');
+    assert.equal(expenses[0].paymentTypeId, '');
     const summary = await (await fetch(`${url}/summary?month=2026-05`)).json();
     assert.equal(summary.categories[0].spent, 4);
   } finally {
     legacy.close();
   }
+});
+
+test('adds, updates and removes payment types', async () => {
+  const { status, body: card } = await call('POST', '/payment-types', {
+    name: ' Amex Gold ', kind: 'Credit card', provider: ' American Express ',
+  });
+  assert.equal(status, 201);
+  assert.deepEqual({ name: card.name, kind: card.kind, provider: card.provider },
+    { name: 'Amex Gold', kind: 'Credit card', provider: 'American Express' });
+
+  const { body: updated } = await call('PUT', `/payment-types/${card.id}`, {
+    name: 'Amex Platinum', kind: 'Credit card', provider: 'American Express',
+  });
+  assert.equal(updated.name, 'Amex Platinum');
+  assert.ok((await call('GET', '/payment-types')).body.some((p) => p.name === 'Amex Platinum'));
+
+  assert.equal((await call('DELETE', `/payment-types/${card.id}`)).status, 204);
+  assert.equal((await call('DELETE', `/payment-types/${card.id}`)).status, 404);
+  assert.ok(!(await call('GET', '/payment-types')).body.some((p) => p.id === card.id));
+});
+
+test('rejects invalid or duplicate payment types', async () => {
+  await call('POST', '/payment-types', { name: 'Cash', kind: 'Cash' });
+  assert.equal((await call('POST', '/payment-types', { name: 'cash', kind: 'Cash' })).status, 409);
+  assert.equal((await call('POST', '/payment-types', { name: '', kind: 'Cash' })).status, 400);
+  assert.equal((await call('POST', '/payment-types', { name: 'Visa', kind: 'Cheque' })).status, 400);
+  assert.equal((await call('PUT', '/payment-types/nope', { name: 'X' })).status, 404);
+});
+
+test('expenses take an optional payment type that survives its deletion', async () => {
+  const { body: cats } = await call('GET', '/categories');
+  const { body: debit } = await call('POST', '/payment-types', { name: 'HDFC Debit', kind: 'Debit card', provider: 'HDFC' });
+
+  const { body: plain } = await call('POST', '/expenses', { categoryId: cats[0].id, amount: 1, date: '2026-04-01' });
+  assert.equal(plain.paymentTypeId, '');
+  const { status, body: paid } = await call('POST', '/expenses', {
+    categoryId: cats[0].id, amount: 2, date: '2026-04-02', paymentTypeId: debit.id,
+  });
+  assert.equal(status, 201);
+  assert.equal(paid.paymentTypeId, debit.id);
+  assert.equal((await call('POST', '/expenses', {
+    categoryId: cats[0].id, amount: 2, date: '2026-04-02', paymentTypeId: 'nope',
+  })).status, 400);
+
+  assert.equal((await call('DELETE', `/payment-types/${debit.id}`)).status, 204);
+  const { body: april } = await call('GET', '/expenses?month=2026-04');
+  assert.equal(april.length, 2);
 });

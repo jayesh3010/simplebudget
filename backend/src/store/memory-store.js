@@ -5,6 +5,7 @@ import { newestFirst } from './sort.js';
 export class MemoryStore {
   constructor() {
     this.categories = new Map();
+    this.paymentTypes = new Map();
     this.expenses = new Map();
   }
 
@@ -25,6 +26,23 @@ export class MemoryStore {
 
   async deleteCategory(id) {
     return this.categories.delete(id);
+  }
+
+  async listPaymentTypes() {
+    return [...this.paymentTypes.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async getPaymentType(id) {
+    return this.paymentTypes.get(id) ?? null;
+  }
+
+  async savePaymentType(paymentType) {
+    this.paymentTypes.set(paymentType.id, { ...paymentType });
+    return paymentType;
+  }
+
+  async deletePaymentType(id) {
+    return this.paymentTypes.delete(id);
   }
 
   async listExpenses(month) {

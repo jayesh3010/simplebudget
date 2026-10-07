@@ -1,7 +1,14 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Category, Expense, MonthSummary, NewExpense } from './budget.models';
+import {
+  Category,
+  Expense,
+  MonthSummary,
+  NewExpense,
+  PaymentType,
+  PaymentTypeInput,
+} from './budget.models';
 
 // Relative URL: in development `ng serve` proxies /api to the Express server
 // (see proxy.conf.json).
@@ -25,6 +32,22 @@ export class BudgetApi {
 
   deleteCategory(id: string): Observable<void> {
     return this.http.delete<void>(`${API}/categories/${id}`);
+  }
+
+  getPaymentTypes(): Observable<PaymentType[]> {
+    return this.http.get<PaymentType[]>(`${API}/payment-types`);
+  }
+
+  createPaymentType(paymentType: PaymentTypeInput): Observable<PaymentType> {
+    return this.http.post<PaymentType>(`${API}/payment-types`, paymentType);
+  }
+
+  updatePaymentType(paymentType: PaymentType): Observable<PaymentType> {
+    return this.http.put<PaymentType>(`${API}/payment-types/${paymentType.id}`, paymentType);
+  }
+
+  deletePaymentType(id: string): Observable<void> {
+    return this.http.delete<void>(`${API}/payment-types/${id}`);
   }
 
   getExpenses(month: string): Observable<Expense[]> {

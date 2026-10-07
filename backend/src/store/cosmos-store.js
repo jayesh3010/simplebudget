@@ -1,9 +1,10 @@
 import { CosmosClient } from '@azure/cosmos';
 import { newestFirst } from './sort.js';
 
-// Two containers:
-//   categories  partition key /id     { id, name, monthlyLimit }
-//   expenses    partition key /month  { id, categoryId, amount, type, subCategory, description, date, month }
+// Three containers:
+//   categories    partition key /id     { id, name, monthlyLimit }
+//   paymentTypes  partition key /id     { id, name, kind, provider }
+//   expenses      partition key /month  { id, categoryId, amount, type, subCategory, paymentTypeId, description, date, month }
 // Partitioning expenses by month keeps the common "show this month" query
 // inside a single partition.
 export class CosmosStore {
@@ -16,6 +17,10 @@ export class CosmosStore {
     const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
     ({ container: this.categories } = await database.containers.createIfNotExists({
       id: 'categories',
+      partitionKey: { paths: ['/id'] },
+    }));
+    ({ container: this.paymentTypes } = await database.containers.createIfNotExists({
+      id: 'paymentTypes',
       partitionKey: { paths: ['/id'] },
     }));
     ({ container: this.expenses } = await database.containers.createIfNotExists({
@@ -44,6 +49,33 @@ export class CosmosStore {
   async deleteCategory(id) {
     try {
       await this.categories.item(id, id).delete();
+      return true;
+    } catch (err) {
+      if (err.code === 404) return false;
+      throw err;
+    }
+  }
+
+  async listPaymentTypes() {
+    const { resources } = await this.paymentTypes.items
+      .query('SELECT p.id, p.name, p.kind, p.provider FROM p')
+      .fetchAll();
+    return resources.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async getPaymentType(id) {
+    const { resource } = await this.paymentTypes.item(id, id).read();
+    return resource ? strip(resource) : null;
+  }
+
+  async savePaymentType(paymentType) {
+    const { resource } = await this.paymentTypes.items.upsert(paymentType);
+    return strip(resource);
+  }
+
+  async deletePaymentType(id) {
+    try {
+      await this.paymentTypes.item(id, id).delete();
       return true;
     } catch (err) {
       if (err.code === 404) return false;

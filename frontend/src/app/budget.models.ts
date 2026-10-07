@@ -6,12 +6,24 @@ export interface Category {
 
 export type ExpenseType = 'Debit' | 'Credit';
 
+export type PaymentKind = 'Credit card' | 'Debit card' | 'Cash' | 'Bank transfer' | 'Other';
+
+export interface PaymentType {
+  id: string;
+  name: string;
+  kind: PaymentKind;
+  provider: string;
+}
+
+export type PaymentTypeInput = Omit<PaymentType, 'id'>;
+
 export interface Expense {
   id: string;
   categoryId: string;
   amount: number;
   type: ExpenseType;
   subCategory: string;
+  paymentTypeId: string; // '' when none; may point to a deleted payment type
   description: string;
   date: string; // YYYY-MM-DD
   month: string; // YYYY-MM
@@ -23,6 +35,7 @@ export interface NewExpense {
   amount: number;
   type: ExpenseType;
   subCategory: string;
+  paymentTypeId: string;
   description: string;
   date: string;
 }
