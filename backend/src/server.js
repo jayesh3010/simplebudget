@@ -1,10 +1,11 @@
-import { createApp, seedCategories } from './app.js';
+import { createApp, seedCategories, seedPaymentTypes } from './app.js';
 import { config } from './config.js';
 import { createStore } from './store/index.js';
 
 const store = createStore(config.cosmos);
 await store.init();
 await seedCategories(store);
+await seedPaymentTypes(store);
 
 const usingCosmos = Boolean(config.cosmos.endpoint && config.cosmos.key);
 if (!usingCosmos) {

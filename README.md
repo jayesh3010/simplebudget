@@ -29,8 +29,10 @@ npm start
 ```
 
 `ng serve` proxies `/api` to `http://localhost:3000` (see `frontend/proxy.conf.json`).
-On first start the API creates five sample categories (Groceries, Rent,
-Transport, Utilities, Entertainment) with limits you can edit in the app.
+On first start the API loads `backend/seed/seed-data.json`: five categories
+(Groceries, Rent, Transport, Utilities, Entertainment) with limits, and two
+payment types (Cash, Bank transfer). Each list is seeded only if it is empty, so
+existing data is never touched. Edit that file to change the starting data.
 
 ## Using Azure Cosmos DB
 

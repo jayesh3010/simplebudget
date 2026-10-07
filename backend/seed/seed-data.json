@@ -1,0 +1,13 @@
+{
+  "categories": [
+    { "name": "Groceries", "monthlyLimit": 400 },
+    { "name": "Rent", "monthlyLimit": 1200 },
+    { "name": "Transport", "monthlyLimit": 150 },
+    { "name": "Utilities", "monthlyLimit": 200 },
+    { "name": "Entertainment", "monthlyLimit": 100 }
+  ],
+  "paymentTypes": [
+    { "name": "Cash", "kind": "Cash", "provider": "" },
+    { "name": "Bank transfer", "kind": "Bank transfer", "provider": "" }
+  ]
+}

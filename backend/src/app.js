@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import cors from 'cors';
 import express from 'express';
 
@@ -7,19 +8,28 @@ const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 export const EXPENSE_TYPES = ['Debit', 'Credit'];
 export const PAYMENT_KINDS = ['Credit card', 'Debit card', 'Cash', 'Bank transfer', 'Other'];
 
-export const DEFAULT_CATEGORIES = [
-  { name: 'Groceries', monthlyLimit: 400 },
-  { name: 'Rent', monthlyLimit: 1200 },
-  { name: 'Transport', monthlyLimit: 150 },
-  { name: 'Utilities', monthlyLimit: 200 },
-  { name: 'Entertainment', monthlyLimit: 100 },
-];
+// Starting data for a fresh database. Edit seed/seed-data.json to change it.
+const seedData = JSON.parse(
+  readFileSync(new URL('../seed/seed-data.json', import.meta.url), 'utf8'),
+);
+export const DEFAULT_CATEGORIES = seedData.categories;
+export const DEFAULT_PAYMENT_TYPES = seedData.paymentTypes;
 
+// Each seed only runs when its collection is empty, so it never overwrites
+// or duplicates data the user already has.
 export async function seedCategories(store) {
   const existing = await store.listCategories();
   if (existing.length > 0) return;
   for (const c of DEFAULT_CATEGORIES) {
     await store.saveCategory({ id: randomUUID(), ...c });
+  }
+}
+
+export async function seedPaymentTypes(store) {
+  const existing = await store.listPaymentTypes();
+  if (existing.length > 0) return;
+  for (const p of DEFAULT_PAYMENT_TYPES) {
+    await store.savePaymentType({ id: randomUUID(), ...p });
   }
 }
 
