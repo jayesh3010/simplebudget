@@ -1,0 +1,106 @@
+<header class="topbar">
+  <h1>SimpleBudge</h1>
+  <label class="month-picker">
+    Month
+    <input type="month" [ngModel]="month()" (ngModelChange)="changeMonth($event)" />
+  </label>
+</header>
+
+<main>
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+
+  @if (summary(); as s) {
+    <section class="card">
+      <h2>Spent vs limit</h2>
+      <div class="totals">
+        <div><span>Spent</span><strong>{{ s.totalSpent | number: '1.2-2' }}</strong></div>
+        <div><span>Limit</span><strong>{{ s.totalLimit | number: '1.2-2' }}</strong></div>
+        <div>
+          <span>Remaining</span>
+          <strong [class.over]="s.totalRemaining < 0">{{ s.totalRemaining | number: '1.2-2' }}</strong>
+        </div>
+      </div>
+
+      <ul class="limits">
+        @for (row of s.categories; track row.categoryId) {
+          <li>
+            <div class="limit-head">
+              <span class="name">{{ row.name }}</span>
+              <span class="figures" [class.over]="row.overLimit">
+                {{ row.spent | number: '1.2-2' }} / {{ row.limit | number: '1.2-2' }}
+              </span>
+              @if (editing()?.id === row.categoryId) {
+                <form class="inline" (ngSubmit)="saveLimit()">
+                  <input
+                    type="number" min="0" step="0.01" name="limit" required aria-label="New monthly limit"
+                    [ngModel]="editing()!.limit"
+                    (ngModelChange)="editing.set({ id: row.categoryId, limit: $event })" />
+                  <button type="submit">Save</button>
+                  <button type="button" class="link" (click)="editing.set(null)">Cancel</button>
+                </form>
+              } @else {
+                <span class="actions">
+                  <button type="button" class="link" (click)="startEdit(row.categoryId, row.limit)">Edit limit</button>
+                  <button type="button" class="link danger" (click)="deleteCategory(row.categoryId)">Delete</button>
+                </span>
+              }
+            </div>
+            <div class="bar" [class.over]="row.overLimit">
+              <div class="fill" [style.width.%]="percent(row.spent, row.limit)"></div>
+            </div>
+          </li>
+        } @empty {
+          <li class="muted">No categories yet. Add one below.</li>
+        }
+      </ul>
+
+      <form class="row" (ngSubmit)="addCategory()">
+        <input name="catName" placeholder="New category" required maxlength="50" [(ngModel)]="newCategory.name" />
+        <input name="catLimit" type="number" min="0" step="0.01" placeholder="Monthly limit" required
+               [(ngModel)]="newCategory.monthlyLimit" />
+        <button type="submit">Add category</button>
+      </form>
+    </section>
+  }
+
+  <section class="card">
+    <h2>Add expense</h2>
+    <form class="row" (ngSubmit)="addExpense()">
+      <select name="category" required [(ngModel)]="newExpense.categoryId" aria-label="Category">
+        @for (c of categories(); track c.id) {
+          <option [value]="c.id">{{ c.name }}</option>
+        }
+      </select>
+      <input name="amount" type="number" min="0.01" step="0.01" placeholder="Amount" required
+             [(ngModel)]="newExpense.amount" />
+      <input name="date" type="date" required [(ngModel)]="newExpense.date" aria-label="Date" />
+      <input name="description" placeholder="Description (optional)" maxlength="200"
+             [(ngModel)]="newExpense.description" />
+      <button type="submit">Add</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Expenses this month</h2>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Category</th><th>Description</th><th class="num">Amount</th><th></th></tr>
+      </thead>
+      <tbody>
+        @for (e of expenses(); track e.id) {
+          <tr>
+            <td>{{ e.date }}</td>
+            <td>{{ categoryNames().get(e.categoryId) ?? 'Unknown' }}</td>
+            <td>{{ e.description }}</td>
+            <td class="num">{{ e.amount | number: '1.2-2' }}</td>
+            <td class="num"><button type="button" class="link danger" (click)="deleteExpense(e)">Delete</button></td>
+          </tr>
+        } @empty {
+          <tr><td colspan="5" class="muted">No expenses for this month yet.</td></tr>
+        }
+      </tbody>
+    </table>
+  </section>
+</main>

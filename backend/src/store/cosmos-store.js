@@ -1,0 +1,95 @@
+import { CosmosClient } from '@azure/cosmos';
+
+// Two containers:
+//   categories  partition key /id     { id, name, monthlyLimit }
+//   expenses    partition key /month  { id, categoryId, amount, description, date, month }
+// Partitioning expenses by month keeps the common "show this month" query
+// inside a single partition.
+export class CosmosStore {
+  constructor({ endpoint, key, database }) {
+    this.client = new CosmosClient({ endpoint, key });
+    this.databaseId = database;
+  }
+
+  async init() {
+    const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
+    ({ container: this.categories } = await database.containers.createIfNotExists({
+      id: 'categories',
+      partitionKey: { paths: ['/id'] },
+    }));
+    ({ container: this.expenses } = await database.containers.createIfNotExists({
+      id: 'expenses',
+      partitionKey: { paths: ['/month'] },
+    }));
+  }
+
+  async listCategories() {
+    const { resources } = await this.categories.items
+      .query('SELECT c.id, c.name, c.monthlyLimit FROM c ORDER BY c.name')
+      .fetchAll();
+    return resources;
+  }
+
+  async getCategory(id) {
+    const { resource } = await this.categories.item(id, id).read();
+    return resource ? strip(resource) : null;
+  }
+
+  async saveCategory(category) {
+    const { resource } = await this.categories.items.upsert(category);
+    return strip(resource);
+  }
+
+  async deleteCategory(id) {
+    try {
+      await this.categories.item(id, id).delete();
+      return true;
+    } catch (err) {
+      if (err.code === 404) return false;
+      throw err;
+    }
+  }
+
+  async listExpenses(month) {
+    const { resources } = await this.expenses.items
+      .query(
+        {
+          query: 'SELECT * FROM e WHERE e.month = @month ORDER BY e.date DESC, e.createdAt DESC',
+          parameters: [{ name: '@month', value: month }],
+        },
+        { partitionKey: month },
+      )
+      .fetchAll();
+    return resources.map(strip);
+  }
+
+  async countExpensesForCategory(categoryId) {
+    const { resources } = await this.expenses.items
+      .query({
+        query: 'SELECT VALUE COUNT(1) FROM e WHERE e.categoryId = @categoryId',
+        parameters: [{ name: '@categoryId', value: categoryId }],
+      })
+      .fetchAll();
+    return resources[0] ?? 0;
+  }
+
+  async saveExpense(expense) {
+    const { resource } = await this.expenses.items.create(expense);
+    return strip(resource);
+  }
+
+  async deleteExpense(id, month) {
+    try {
+      await this.expenses.item(id, month).delete();
+      return true;
+    } catch (err) {
+      if (err.code === 404) return false;
+      throw err;
+    }
+  }
+}
+
+// Drop Cosmos system properties (_rid, _etag, ...) before returning to clients.
+function strip(doc) {
+  return Object.fromEntries(Object.entries(doc).filter(([k]) => !k.startsWith('_')));
+}
