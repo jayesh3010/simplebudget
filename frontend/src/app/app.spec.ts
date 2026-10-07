@@ -28,6 +28,7 @@ describe('App', () => {
       totalSpent: 450,
       totalRemaining: -50,
     });
+    fixture.componentInstance.page.set('budget');
     await fixture.whenStable();
 
     const el = fixture.nativeElement as HTMLElement;
@@ -102,6 +103,8 @@ describe('App', () => {
     const el = fixture.nativeElement as HTMLElement;
     const paymentCells = [...el.querySelectorAll('tbody tr')].map((r) => r.querySelectorAll('td')[4].textContent!.trim());
     expect(paymentCells).toEqual(['Amex Gold', '']);
+    fixture.componentInstance.page.set('budget');
+    fixture.detectChanges();
     expect(el.querySelector('.payment-types li')?.textContent).toContain('Credit card · American Express');
   });
 
