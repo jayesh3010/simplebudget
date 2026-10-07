@@ -1,4 +1,5 @@
 import { CosmosClient } from '@azure/cosmos';
+import { newestFirst } from './sort.js';
 
 // Two containers:
 //   categories  partition key /id     { id, name, monthlyLimit }
@@ -25,9 +26,9 @@ export class CosmosStore {
 
   async listCategories() {
     const { resources } = await this.categories.items
-      .query('SELECT c.id, c.name, c.monthlyLimit FROM c ORDER BY c.name')
+      .query('SELECT c.id, c.name, c.monthlyLimit FROM c')
       .fetchAll();
-    return resources;
+    return resources.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getCategory(id) {
@@ -54,13 +55,15 @@ export class CosmosStore {
     const { resources } = await this.expenses.items
       .query(
         {
-          query: 'SELECT * FROM e WHERE e.month = @month ORDER BY e.date DESC, e.createdAt DESC',
+          // Sorted in code: ORDER BY on two fields needs a composite index,
+          // and a month's expenses are few enough to sort here.
+          query: 'SELECT * FROM e WHERE e.month = @month',
           parameters: [{ name: '@month', value: month }],
         },
         { partitionKey: month },
       )
       .fetchAll();
-    return resources.map(strip);
+    return resources.map(strip).sort(newestFirst);
   }
 
   async countExpensesForCategory(categoryId) {

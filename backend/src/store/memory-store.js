@@ -1,3 +1,5 @@
+import { newestFirst } from './sort.js';
+
 // Keeps everything in memory. Used for local development and tests when
 // Cosmos DB is not configured. Data is lost when the process exits.
 export class MemoryStore {
@@ -28,7 +30,7 @@ export class MemoryStore {
   async listExpenses(month) {
     return [...this.expenses.values()]
       .filter((e) => e.month === month)
-      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+      .sort(newestFirst);
   }
 
   async countExpensesForCategory(categoryId) {
